@@ -12,9 +12,9 @@ library(tidyverse)
 library(janitor)
 
 
-kaggle_data <- read.csv(here::here("data","kaggle_data.csv"), stringsAsFactors = TRUE) %>% 
-  clean_names() %>% 
-  rename(age = i_age) %>% 
+kaggle_data <- read.csv(here::here("data", "kaggle_data.csv"), stringsAsFactors = TRUE) %>%
+  clean_names() %>%
+  rename(age = i_age) %>%
   select(-over18)
 ```
 
@@ -26,7 +26,7 @@ kaggle_data <- read.csv(here::here("data","kaggle_data.csv"), stringsAsFactors =
 ### Does age affect attrition?
 
 ```{r}
-kaggle_data %>% 
+kaggle_data %>%
   ggplot(aes(x = age, fill = attrition)) +
   geom_histogram()
 ```
@@ -35,22 +35,21 @@ kaggle_data %>%
 ### Departmental Attrition?
 
 ```{r}
-kaggle_data %>% 
+kaggle_data %>%
   ggplot(aes(x = age, fill = attrition)) +
   geom_histogram() +
-  facet_wrap(~ job_role)
+  facet_wrap(~job_role)
 
-kaggle_data %>% 
+kaggle_data %>%
   ggplot(aes(x = age, fill = attrition)) +
   geom_histogram() +
-  facet_wrap(~ department)
-
+  facet_wrap(~department)
 ```
 
 ### Breakdown of distance from home by job role and attrition
 
 ```{r}
-kaggle_data %>% 
+kaggle_data %>%
   ggplot(aes(x = job_role, y = distance_from_home, color = attrition)) +
   geom_boxplot()
 ```
@@ -58,9 +57,9 @@ kaggle_data %>%
 ### Average Monthly income by education and attrition
 
 ```{r}
-kaggle_data %>% 
-  group_by(education, attrition) %>% 
-  summarise(avg_monthly_income = mean(monthly_income)) %>% 
+kaggle_data %>%
+  group_by(education, attrition) %>%
+  summarise(avg_monthly_income = mean(monthly_income)) %>%
   ggplot(aes(x = education, y = avg_monthly_income, fill = attrition)) +
   geom_col(position = "dodge")
 ```
@@ -68,19 +67,19 @@ kaggle_data %>%
 ### Job satisfaction and attrition by level and role
 
 ```{r}
-kaggle_data %>% 
-  mutate(job_satisfaction = as.factor(job_satisfaction)) %>% 
-  group_by(job_satisfaction) %>% 
-  count(attrition) %>% 
+kaggle_data %>%
+  mutate(job_satisfaction = as.factor(job_satisfaction)) %>%
+  group_by(job_satisfaction) %>%
+  count(attrition) %>%
   ggplot(aes(x = job_satisfaction, y = n, fill = attrition)) +
   geom_col(position = "dodge")
 ```
 ### Gender Differences in attrition?
 
 ```{r}
-kaggle_data %>% 
-  group_by(gender, attrition) %>% 
-  count(attrition) %>% 
+kaggle_data %>%
+  group_by(gender, attrition) %>%
+  count(attrition) %>%
   ggplot(aes(x = gender, y = n, fill = attrition)) +
   geom_col(position = "dodge")
 ```
@@ -98,28 +97,26 @@ kaggle_data %>%
 
 
 ```{r}
-kaggle_data %>% 
-  mutate(years_in_current_role = as.factor(years_in_current_role)) %>% 
-  group_by(years_in_current_role, attrition) %>% 
-  count(years_in_current_role) %>% 
+kaggle_data %>%
+  mutate(years_in_current_role = as.factor(years_in_current_role)) %>%
+  group_by(years_in_current_role, attrition) %>%
+  count(years_in_current_role) %>%
   ggplot(aes(x = years_in_current_role, y = n, fill = attrition)) +
   geom_col()
 
-kaggle_data %>% 
-  mutate(years_at_company = as.factor(years_at_company)) %>% 
-  group_by(years_at_company, attrition) %>% 
-  count(years_at_company) %>% 
+kaggle_data %>%
+  mutate(years_at_company = as.factor(years_at_company)) %>%
+  group_by(years_at_company, attrition) %>%
+  count(years_at_company) %>%
   ggplot(aes(x = years_at_company, y = n, fill = attrition)) +
   geom_col()
 
-kaggle_data %>% 
-  mutate(total_working_years = as.factor(total_working_years)) %>% 
-  group_by(total_working_years, attrition) %>% 
-  count(total_working_years) %>% 
+kaggle_data %>%
+  mutate(total_working_years = as.factor(total_working_years)) %>%
+  group_by(total_working_years, attrition) %>%
+  count(total_working_years) %>%
   ggplot(aes(x = total_working_years, y = n, fill = attrition)) +
   geom_col()
-
-
 ```
 
 
@@ -131,6 +128,17 @@ library(tidymodels)
 library(glmnet)
 set.seed(123)
 
+# kaggle_pre_processed <-
+#   recipe(attrition ~ ., data = kaggle_data) %>%
+#   step_dummy(all_nominal(), -all_outcomes()) %>%
+#   step_rm(employee_number) %>%
+#   step_zv(all_predictors()) %>%
+#   step_normalize(age, daily_rate, distance_from_home, hourly_rate, monthly_income, monthly_rate, num_companies_worked, percent_salary_hike, total_working_years, training_times_last_year, years_at_company, years_in_current_role, years_since_last_promotion, years_with_curr_manager) %>%
+#   prep() %>%
+#   bake(new_data = NULL)
+
+  # add_formula(attrition ~ age + distance_from_home + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes)
+
 data_split <- initial_split(kaggle_data, prop = .7)
 
 kaggle_train <- training(data_split)
@@ -138,35 +146,23 @@ kaggle_test <- testing(data_split)
 
 cf_kaggle_train <- vfold_cv(kaggle_train, v = 10)
 
+kaggle_pre_processed_recipe <-
+  recipe(attrition ~ ., data = kaggle_data) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_rm(employee_number) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(age, daily_rate, distance_from_home, hourly_rate, monthly_income, monthly_rate, num_companies_worked, percent_salary_hike, total_working_years, training_times_last_year, years_at_company, years_in_current_role, years_since_last_promotion, years_with_curr_manager)
 ```
 
 ## Using LASSO regression for feature selection
 
 ```{r}
 
-kaggle_pre_processed_train <-
-  recipe(attrition ~ ., data = kaggle_train) %>% 
-  step_dummy(all_nominal(), -all_outcomes()) %>% 
-  step_rm(employee_number) %>% 
-  step_zv(all_predictors()) %>% 
-  step_normalize(all_predictors()) %>% 
-  prep() %>% 
-  bake(new_data = NULL)
-
-kaggle_pre_processed_test <-
-  recipe(attrition ~ ., data = kaggle_test) %>% 
-  step_dummy(all_nominal(), -all_outcomes()) %>% 
-  step_rm(employee_number) %>% 
-  step_zv(all_predictors()) %>% 
-  step_normalize(all_predictors()) %>% 
-  prep() %>% 
-  bake(new_data = NULL)
-
 # My x variables
-x_matrix <- model.matrix(attrition ~ ., data = kaggle_pre_processed_train)[,-1]
+x_matrix <- model.matrix(attrition ~ ., data = kaggle_train)[, -1]
 
 # My y variables
-y <- kaggle_pre_processed_train$attrition
+y <- kaggle_train$attrition
 
 
 cv_fit <- cv.glmnet(x_matrix, y, alpha = 1, measure = "mse", family = binomial)
@@ -186,44 +182,166 @@ features <-
 
 features %>%
   paste(collapse = " + ")
+```
+
+```{r}
+lasso_wf <-
+  workflow() %>%  
+  add_recipe(kaggle_pre_processed_recipe)
+
+lasso_regression <- logistic_reg(penalty = tune(), mixture = 1) %>% 
+  set_engine("glmnet")
+
+lambda_grid <- grid_regular(penalty(), levels = 50)
+
+lasso_grid <-
+  tune_grid(
+    lasso_wf %>% 
+      add_model(lasso_regression), 
+      resamples = cf_kaggle_train,
+    grid = lambda_grid
+  )
+
+best_acc <- lasso_grid %>%
+  select_best(metric = "accuracy")
+
+final_lasso <- finalize_workflow(
+  lasso_wf %>% add_model(lasso_regression),
+  best_acc
+)
+
+lasso_fit <-
+  final_lasso %>% 
+  fit(data = kaggle_train)
+
+lasso_variables <- lasso_fit %>% 
+  pull_workflow_fit() %>% 
+  tidy()
+
+lasso_variables %>% 
+  filter(estimate != 0) %>% 
+  pull(term) %>% 
+  paste(collapse = " + ")
 
 ```
+
+
 
 ## Logistic Regression
 
 ```{r}
-glm_fit <- glm(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Marketing + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes, data = kaggle_pre_processed_train, family = binomial)
 
-predictions <- predict.glm(glm_fit, newdata = kaggle_pre_processed_test, type="response")
+glm_fit <- glm(attrition ~ age + distance_from_home + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes, data = kaggle_train, family = binomial)
 
-pred_attrition <- ifelse(predictions > 0.50, "Yes","No")
+predictions <- predict.glm(glm_fit, newdata = kaggle_test, type = "response")
+
+pred_attrition <- ifelse(predictions > 0.50, "Yes", "No")
 
 prediction_accuracy <-
-  kaggle_pre_processed_test$attrition %>% 
-  bind_cols(pred_attrition) %>% 
-  rename(actual = ...1, 
-         predicted = ...2)
+  kaggle_test$attrition %>%
+  bind_cols(pred_attrition) %>%
+  rename(
+    actual = ...1,
+    predicted = ...2
+  )
 table(prediction_accuracy)
 
-mean(pred_attrition == kaggle_pre_processed_test$attrition)
-
+mean(pred_attrition == kaggle_test$attrition)
 ```
-
-
 
 ## Decision Tree
 
 ```{r}
-library(randomForest)
+xgb_model <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(), min_n = tune(),
+  loss_reduction = tune(), ## first three: model complexity
+  sample_size = tune(), mtry = tune(), ## randomness
+  learn_rate = tune(), ## step size
+) %>%
+  set_engine("xgboost") %>%
+  set_mode("classification")
 
-tree <- randomForest(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Marketing + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes, data = kaggle_pre_processed_train)
+xgb_grid <- grid_latin_hypercube(
+  tree_depth(),
+  min_n(),
+  loss_reduction(),
+  sample_size = sample_prop(),
+  finalize(mtry(), kaggle_train),
+  learn_rate(),
+  size = 30
+)
 
+xgb_wf <- 
+  model_workflow %>%
+  add_model(xgb_spec)
 
+doParallel::registerDoParallel()
 
+xgb_res <- tune_grid(
+  xgb_wf,
+  resamples = cf_kaggle_train,
+  grid = xgb_grid,
+  control = control_grid(save_pred = TRUE)
+)
+
+best_acc <- select_best(xgb_res, "accuracy")
+
+final_xgb <- finalize_workflow(
+  xgb_wf,
+  best_acc
+)
+
+library(vip)
+
+final_xgb %>%
+  fit(data = kaggle_train) %>%
+  pull_workflow_fit() %>%
+  vip(geom = "point")
+
+final_res <- last_fit(final_xgb, data_split)
+
+collect_metrics(final_res)
 
 ```
 
 
 ## SVM
+
+```{r}
+
+svm_model <-
+  svm_rbf(cost = tune(), rbf_sigma = tune()) %>% 
+  set_mode("classification") %>% 
+  set_engine("kernlab")
+
+svm_wf <- 
+  model_workflow %>% 
+  add_model(svm_model)
+
+formula_res <-
+  svm_model %>% 
+  tune_grid(
+    attrition ~ age + distance_from_home + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes,
+    resamples = cf_kaggle_train
+    )
+
+best_acc <- select_best(formula_res, "accuracy")
+
+final_svm <- finalize_workflow(
+  svm_wf,
+  best_acc
+)
+
+svm_results <- 
+  last_fit(final_svm, data_split) %>% 
+  collect_metrics()
+
+
+```
+
+
+
+
 
 # Summary/Analysis
