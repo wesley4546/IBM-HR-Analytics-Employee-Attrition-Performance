@@ -11,13 +11,12 @@ output: html_document
 library(tidyverse)
 library(janitor)
 
-
+# Reading in our data, removing `over18` because only 1 value found (they're all over 18)
 kaggle_data <- read.csv(here::here("data", "kaggle_data.csv"), stringsAsFactors = TRUE) %>%
   clean_names() %>%
   rename(age = i_age) %>%
   select(-over18)
 ```
-
 
 # EDA - Steps to understand our data
 
@@ -28,7 +27,13 @@ kaggle_data <- read.csv(here::here("data", "kaggle_data.csv"), stringsAsFactors 
 ```{r}
 kaggle_data %>%
   ggplot(aes(x = age, fill = attrition)) +
-  geom_histogram()
+  geom_histogram() +
+  labs(
+    title = "Age - Attrition",
+    subtitle = "Histogram of employee's age",
+    y = "Number of Individuals",
+    x = "Age"
+  )
 ```
 
 
@@ -38,12 +43,24 @@ kaggle_data %>%
 kaggle_data %>%
   ggplot(aes(x = age, fill = attrition)) +
   geom_histogram() +
-  facet_wrap(~job_role)
+  facet_wrap(~job_role)+
+  labs(
+    title = "Age & Job Role - Attrition",
+    subtitle = "Breakdown of attrition by age and job role",
+    y = "Number of Individuals",
+    x = "Age"
+  )
 
 kaggle_data %>%
   ggplot(aes(x = age, fill = attrition)) +
   geom_histogram() +
-  facet_wrap(~department)
+  facet_wrap(~department)+
+  labs(
+    title = "Age & Department - Attrition",
+    subtitle = "Breakdown of attrition by age and department",
+    y = "Number of Individuals",
+    x = "Age"
+  )
 ```
 
 ### Breakdown of distance from home by job role and attrition
@@ -51,7 +68,13 @@ kaggle_data %>%
 ```{r}
 kaggle_data %>%
   ggplot(aes(x = job_role, y = distance_from_home, color = attrition)) +
-  geom_boxplot()
+  geom_boxplot() +
+  labs(
+    title = "Distance from home & Job Role - Attrition",
+    subtitle = "Boxplots of distance from home on attrition by job role",
+    y = "Distance From Home",
+    x = "Job Role"
+  )
 ```
 
 ### Average Monthly income by education and attrition
@@ -61,7 +84,14 @@ kaggle_data %>%
   group_by(education, attrition) %>%
   summarise(avg_monthly_income = mean(monthly_income)) %>%
   ggplot(aes(x = education, y = avg_monthly_income, fill = attrition)) +
-  geom_col(position = "dodge")
+  geom_col(position = "dodge") +
+  labs(
+    title = "Education & Monthly income | Attrition",
+    subtitle = "Attrition over different education levels and monthly income",
+    x = "Education Level",
+    y = "Average Monthly Income"
+    
+  )
 ```
 
 ### Job satisfaction and attrition by level and role
@@ -72,8 +102,15 @@ kaggle_data %>%
   group_by(job_satisfaction) %>%
   count(attrition) %>%
   ggplot(aes(x = job_satisfaction, y = n, fill = attrition)) +
-  geom_col(position = "dodge")
+  geom_col(position = "dodge") +
+  labs(
+    title = "Job Satisfaction & Attrition",
+    subtitle = "Do less satisfied employees see more attrition?",
+    x = "Job Satisfaction Rating",
+    y = "# of Responses"
+  )
 ```
+
 ### Gender Differences in attrition?
 
 ```{r}
@@ -81,7 +118,13 @@ kaggle_data %>%
   group_by(gender, attrition) %>%
   count(attrition) %>%
   ggplot(aes(x = gender, y = n, fill = attrition)) +
-  geom_col(position = "dodge")
+  geom_col(position = "dodge") +
+  labs(
+    title = "Gender & Attrition",
+    subtitle = "Do male or female employees see more attrition?",
+    x = "Gender",
+    y = "# of Employees"
+  )
 ```
 
 ### Theory-based approach to attrition (Burn-out)
@@ -102,166 +145,200 @@ kaggle_data %>%
   group_by(years_in_current_role, attrition) %>%
   count(years_in_current_role) %>%
   ggplot(aes(x = years_in_current_role, y = n, fill = attrition)) +
-  geom_col()
+  geom_col() + 
+  labs(
+    title = "Years in Current Role & Attrition",
+    subtitle = "Do employees that stay longer in roles see more attrition?",
+    x = "Years in Current Role",
+    y = "# of Employees"
+  )
 
 kaggle_data %>%
   mutate(years_at_company = as.factor(years_at_company)) %>%
   group_by(years_at_company, attrition) %>%
   count(years_at_company) %>%
   ggplot(aes(x = years_at_company, y = n, fill = attrition)) +
-  geom_col()
+  geom_col() + 
+  labs(
+    title = "Years at Company & Attrition",
+    subtitle = "Is there a relationship between how long an employee works for the company and if they leave?",
+    x = "Years at Company",
+    y = "# of Employees"
+  )
 
 kaggle_data %>%
   mutate(total_working_years = as.factor(total_working_years)) %>%
   group_by(total_working_years, attrition) %>%
   count(total_working_years) %>%
   ggplot(aes(x = total_working_years, y = n, fill = attrition)) +
-  geom_col()
+  geom_col() + 
+  labs(
+    title = "Years Worked & Attrition",
+    subtitle = "Do employees with more work experience leave or stay?",
+    x = "Years Worked",
+    y = "# of Employees"
+  )
 ```
 
+# Feature Selection: 2 Birds - 1 Stone
 
+Here I am going to be using a penalized logistic regression (basically a fancy logistic regression). Think of a normal logistic regression but we use ~regularization~. Regularization is a way for us to increase our generalization of our models by adding penalties to the variables that shrinks the estimates of the coefficients. 
 
-# Model Building
+This has two advantages:
+
+ 1. It is a logistic regression
+ 2. It selects features
+ 
+I then can use those selected features for my other 2 models.
+
+I'm recently becoming a fan of the `tidymodels` package that allows standardized uses of models. Lets start by using `recipes` and `rsamples` to make our dummy variables as well as scale our numeric variables.
 
 ```{r}
 library(tidymodels)
 library(glmnet)
 set.seed(123)
 
-# kaggle_pre_processed <-
-#   recipe(attrition ~ ., data = kaggle_data) %>%
-#   step_dummy(all_nominal(), -all_outcomes()) %>%
-#   step_rm(employee_number) %>%
-#   step_zv(all_predictors()) %>%
-#   step_normalize(age, daily_rate, distance_from_home, hourly_rate, monthly_income, monthly_rate, num_companies_worked, percent_salary_hike, total_working_years, training_times_last_year, years_at_company, years_in_current_role, years_since_last_promotion, years_with_curr_manager) %>%
-#   prep() %>%
-#   bake(new_data = NULL)
+# Preprocesses our data
+kaggle_pre_processed <-
+  recipe(attrition ~ ., data = kaggle_data) %>%
+  step_dummy(all_nominal(), -all_outcomes()) %>%
+  step_rm(employee_number) %>%
+  step_normalize(age, daily_rate, distance_from_home, hourly_rate, monthly_income, monthly_rate, num_companies_worked, percent_salary_hike, total_working_years, training_times_last_year, years_at_company, years_in_current_role, years_since_last_promotion, years_with_curr_manager) %>%
+  prep() %>%
+  bake(new_data = NULL)
+```
 
-  # add_formula(attrition ~ age + distance_from_home + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes)
+Now we can split out data into a 70-30 split as well as create 10 folds
 
-data_split <- initial_split(kaggle_data, prop = .7)
+```{r}
+# Index our split
+data_split <- initial_split(kaggle_pre_processed, prop = .7)
 
 kaggle_train <- training(data_split)
 kaggle_test <- testing(data_split)
 
-cf_kaggle_train <- vfold_cv(kaggle_train, v = 10)
-
-kaggle_pre_processed_recipe <-
-  recipe(attrition ~ ., data = kaggle_data) %>%
-  step_dummy(all_nominal(), -all_outcomes()) %>%
-  step_rm(employee_number) %>%
-  step_zv(all_predictors()) %>%
-  step_normalize(age, daily_rate, distance_from_home, hourly_rate, monthly_income, monthly_rate, num_companies_worked, percent_salary_hike, total_working_years, training_times_last_year, years_at_company, years_in_current_role, years_since_last_promotion, years_with_curr_manager)
+cf_kaggle_train <- vfold_cv(kaggle_pre_processed, v = 10)
 ```
 
-## Using LASSO regression for feature selection
+## LASSO Logistic Regression
+
+Lets start by creating our model. Now, penalty is a parameter that we have to estimate. We can do that by using a grid method. We can use the `tune()` function as a placeholder. We specify `mixture = 1` for LASSO.s
 
 ```{r}
-
-# My x variables
-x_matrix <- model.matrix(attrition ~ ., data = kaggle_train)[, -1]
-
-# My y variables
-y <- kaggle_train$attrition
-
-
-cv_fit <- cv.glmnet(x_matrix, y, alpha = 1, measure = "mse", family = binomial)
-
-plot(cv_fit)
-
-coef(cv_fit, s = "lambda.1se")
-
-lasso_model <- glmnet(x_matrix, y, alpha = 1, lambda = cv_fit$lambda.1se, family = binomial)
-
-feature_selection <-
-  lasso_model %>%
-  tidy()
-
-features <-
-  feature_selection$term[-1]
-
-features %>%
-  paste(collapse = " + ")
-```
-
-```{r}
-lasso_wf <-
-  workflow() %>%  
-  add_recipe(kaggle_pre_processed_recipe)
-
-lasso_regression <- logistic_reg(penalty = tune(), mixture = 1) %>% 
+# Specifying our model
+glm_model <- logistic_reg(mode = "classification", mixture = 1, penalty = tune()) %>%
+  set_mode("classification") %>%
   set_engine("glmnet")
-
-lambda_grid <- grid_regular(penalty(), levels = 50)
-
-lasso_grid <-
-  tune_grid(
-    lasso_wf %>% 
-      add_model(lasso_regression), 
-      resamples = cf_kaggle_train,
-    grid = lambda_grid
-  )
-
-best_acc <- lasso_grid %>%
-  select_best(metric = "accuracy")
-
-final_lasso <- finalize_workflow(
-  lasso_wf %>% add_model(lasso_regression),
-  best_acc
-)
-
-lasso_fit <-
-  final_lasso %>% 
-  fit(data = kaggle_train)
-
-lasso_variables <- lasso_fit %>% 
-  pull_workflow_fit() %>% 
-  tidy()
-
-lasso_variables %>% 
-  filter(estimate != 0) %>% 
-  pull(term) %>% 
-  paste(collapse = " + ")
-
 ```
 
+### Tuning Lambda using a grid
 
-
-## Logistic Regression
+Now we have our model we can go ahead and create something called a `workflow` that allows us to contain all our steps together (think of it as a bag to carry around all of our model objects like `glm_model` or a `recipe` object).
 
 ```{r}
+glm_wf <-
+  workflow() %>%
+  add_model(glm_model) %>%
+  add_formula(attrition ~ .)
+```
 
-glm_fit <- glm(attrition ~ age + distance_from_home + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes, data = kaggle_train, family = binomial)
+Using the `grid_regular()` function, we can automatically make a bunch of potential lambda values.
 
-predictions <- predict.glm(glm_fit, newdata = kaggle_test, type = "response")
+```{r}
+lambda_grid <- grid_regular(penalty(), levels = 50)
+```
 
-pred_attrition <- ifelse(predictions > 0.50, "Yes", "No")
+We can use the `tune_grid()` function to create a bunch of models using our `cf_kaggle_train` cross-validation set.
 
-prediction_accuracy <-
-  kaggle_test$attrition %>%
-  bind_cols(pred_attrition) %>%
-  rename(
-    actual = ...1,
-    predicted = ...2
-  )
-table(prediction_accuracy)
+```{r}
+glm_grid <- tune_grid(
+  glm_wf,
+  resamples = cf_kaggle_train,
+  grid = lambda_grid
+)
+```
 
-mean(pred_attrition == kaggle_test$attrition)
+The `select_best()` function allows us to pull out the model that has the best metric we specify.
+
+```{r}
+best_accuracy_penalty <-
+  glm_grid %>%
+  select_best(metric = "accuracy")
+best_accuracy_penalty
+```
+
+We can see the best lambda value we found is: `r best_accuracy_penalty$penalty`
+
+Woohoo!
+
+Lets fit our model, this time we can make penalty our value:
+
+```{r}
+final_glm_model <-
+  logistic_reg(mode = "classification", mixture = 1, penalty = best_accuracy_penalty$penalty) %>%
+  set_mode("classification") %>%
+  set_engine("glmnet") %>%
+  fit(attrition ~ ., data = kaggle_train)
+```
+
+### Evalutation - Logistic Regression
+
+Now we can use `predict()` to test our model on new data.
+
+```{r}
+glm_pred <- predict(final_glm_model, kaggle_test)
+
+# Combine the predictions and actual values into a data.frame
+glm_pred_table <-
+  glm_pred %>%
+  bind_cols(kaggle_test$attrition, .name_repair = ~ c("predicted", "actual"))
+
+# Create a confusion matrix
+glm_conf_matrix <- table(glm_pred_table)
+
+# Calculate our accuracy
+glm_accuracy <- (glm_conf_matrix[1] + glm_conf_matrix[4]) / 441 # we have 441 rows in our test data
+
+glm_accuracy
+```
+We get an accuracy of: `r glm_accuracy`.
+
+### Extracting our parameters
+
+Now we can extract the coefficients that are left with the following boot-leg code:
+
+```{r}
+final_glm_model_coefs <-
+  final_glm_model %>%
+  tidy() %>%
+  filter(estimate != 0 & term != "(Intercept)")
+
+variables <-
+  final_glm_model_coefs %>%
+  pull(term) %>%
+  paste(collapse = " + ")
 ```
 
 ## Decision Tree
 
+Lets look at using a decision tree!
+
+Similar to our logistic regression, we have some parameters we need to estimate. (Shout-out to [Julia Silge's blog post](https://juliasilge.com/blog/xgboost-tune-volleyball/) for the inspiration of this code)
+
 ```{r}
+# Specify our model
 xgb_model <- boost_tree(
   trees = 1000,
   tree_depth = tune(), min_n = tune(),
-  loss_reduction = tune(), ## first three: model complexity
-  sample_size = tune(), mtry = tune(), ## randomness
-  learn_rate = tune(), ## step size
+  loss_reduction = tune(), # first three: model complexity
+  sample_size = tune(), mtry = tune(), # randomness
+  learn_rate = tune(), # step size
 ) %>%
   set_engine("xgboost") %>%
   set_mode("classification")
 
+
+# According to Julia Silge, we can use the latin Hypercube sampling method for our parameters
 xgb_grid <- grid_latin_hypercube(
   tree_depth(),
   min_n(),
@@ -272,76 +349,106 @@ xgb_grid <- grid_latin_hypercube(
   size = 30
 )
 
-xgb_wf <- 
-  model_workflow %>%
-  add_model(xgb_spec)
+# Creates a workflow with our LASSO selected variables
+xgb_wf <-
+  workflow() %>%
+  add_model(xgb_model) %>%
+  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_satisfaction + monthly_income + monthly_rate + num_companies_worked + percent_salary_hike + performance_rating + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
 
-doParallel::registerDoParallel()
-
+# Tunes the parameters
 xgb_res <- tune_grid(
   xgb_wf,
   resamples = cf_kaggle_train,
   grid = xgb_grid,
   control = control_grid(save_pred = TRUE)
 )
-
-best_acc <- select_best(xgb_res, "accuracy")
-
-final_xgb <- finalize_workflow(
-  xgb_wf,
-  best_acc
-)
-
-library(vip)
-
-final_xgb %>%
-  fit(data = kaggle_train) %>%
-  pull_workflow_fit() %>%
-  vip(geom = "point")
-
-final_res <- last_fit(final_xgb, data_split)
-
-collect_metrics(final_res)
-
 ```
 
+### Extracting our parameters
+
+Get the best model parameters with the highest accuracy:
+
+```{r}
+xgb_accuracy <- select_best(xgb_res, "accuracy")
+xgb_accuracy
+```
+
+### Evaluation - Decision Tree
+
+Putting it all together:
+
+```{r}
+# A shortcut to putting the best values into our model
+final_xgb <- finalize_workflow(
+  xgb_wf,
+  xgb_accuracy
+)
+
+# Fits the model to our training data
+final_res <- last_fit(final_xgb, data_split)
+
+# Display the accuracy
+xgb_results <- collect_metrics(final_res)
+xgb_results
+```
 
 ## SVM
 
 ```{r}
-
+# Specify our model and our tuning parameters
 svm_model <-
-  svm_rbf(cost = tune(), rbf_sigma = tune()) %>% 
-  set_mode("classification") %>% 
+  svm_rbf(cost = tune(), rbf_sigma = tune()) %>%
+  set_mode("classification") %>%
   set_engine("kernlab")
 
-svm_wf <- 
-  model_workflow %>% 
-  add_model(svm_model)
+# Creates a workflow with our LASSO selected variables
+svm_wf <-
+  workflow() %>%
+  add_model(svm_model) %>%
+  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_satisfaction + monthly_income + monthly_rate + num_companies_worked + percent_salary_hike + performance_rating + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
 
+# Tunes the parameters
 formula_res <-
-  svm_model %>% 
   tune_grid(
-    attrition ~ age + distance_from_home + environment_satisfaction + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + department_Research...Development + education_field_Technical.Degree + gender_Male + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Sales.Representative + marital_status_Single + over_time_Yes,
+    svm_wf,
     resamples = cf_kaggle_train
-    )
-
-best_acc <- select_best(formula_res, "accuracy")
-
-final_svm <- finalize_workflow(
-  svm_wf,
-  best_acc
-)
-
-svm_results <- 
-  last_fit(final_svm, data_split) %>% 
-  collect_metrics()
-
-
+  )
 ```
 
+### Extracting our parameters
 
+Get the best model parameters with the highest accuracy:
 
+```{r}
+svm_best_acc <- select_best(formula_res, "accuracy")
+svm_best_acc
+```
 
+### Evaluation - SVM
+
+```{r}
+final_svm <- finalize_workflow(
+  svm_wf,
+  svm_best_acc
+)
+
+svm_results <-
+  last_fit(final_svm, data_split) %>%
+  collect_metrics()
+
+svm_results
+```
 
 # Summary/Analysis
+
+
+
+
+
+# References
+
+https://juliasilge.com/blog/xgboost-tune-volleyball/
+
+https://www.tidymodels.org/start/tuning/
+
+https://compgenomr.github.io/book/logistic-regression-and-regularization.html
