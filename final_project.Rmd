@@ -2,13 +2,17 @@
 title: "IBM HR Analytics Employee Attrition & Performance"
 author: "Wesley Gardiner"
 date: "11/18/2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
 ---
 
 # Introduction
 
+Today I will be using the IBM HR Analytics Employee Attrition & Performance data set from Kaggle found :[here](https://www.kaggle.com/pavansubhasht/ibm-hr-analytics-attrition-dataset)
+
 ```{r setup, include=FALSE}
-library(tidyverse)
+library(tidyverse, warn.conflicts = F)
 library(janitor)
 
 # Reading in our data, removing `over18` because only 1 value found (they're all over 18)
@@ -19,6 +23,8 @@ kaggle_data <- read.csv(here::here("data", "kaggle_data.csv"), stringsAsFactors 
 ```
 
 # EDA - Steps to understand our data
+
+I think its wise to first get an understanding of our data through different graphs of variables.
 
 ## Age Distribution
 
@@ -138,7 +144,6 @@ kaggle_data %>%
  - years_with_curr_manager (high)
  - total_working_years (high)
 
-
 ```{r}
 kaggle_data %>%
   mutate(years_in_current_role = as.factor(years_in_current_role)) %>%
@@ -182,7 +187,7 @@ kaggle_data %>%
 
 # Feature Selection: 2 Birds - 1 Stone
 
-Here I am going to be using a penalized logistic regression (basically a fancy logistic regression). Think of a normal logistic regression but we use ~regularization~. Regularization is a way for us to increase our generalization of our models by adding penalties to the variables that shrinks the estimates of the coefficients. 
+Here I am going to be using a penalized logistic regression (basically a fancy logistic regression). Think of a normal logistic regression but we use *regularization*. Regularization is a way for us to increase our generalization of our models by adding penalties to the variables that shrinks the estimates of the coefficients. 
 
 This has two advantages:
 
@@ -194,8 +199,8 @@ I then can use those selected features for my other 2 models.
 I'm recently becoming a fan of the `tidymodels` package that allows standardized uses of models. Lets start by using `recipes` and `rsamples` to make our dummy variables as well as scale our numeric variables.
 
 ```{r}
-library(tidymodels)
-library(glmnet)
+library(tidymodels, warn.conflicts = F)
+library(glmnet,  warn.conflicts = F)
 set.seed(123)
 
 # Preprocesses our data
@@ -261,13 +266,13 @@ glm_grid <- tune_grid(
 The `select_best()` function allows us to pull out the model that has the best metric we specify.
 
 ```{r}
-best_accuracy_penalty <-
+best_roc_penalty <-
   glm_grid %>%
-  select_best(metric = "accuracy")
-best_accuracy_penalty
+  select_best(metric = "roc_auc")
+best_roc_penalty
 ```
 
-We can see the best lambda value we found is: `r best_accuracy_penalty$penalty`
+We can see the best lambda value we found is: `r best_roc_penalty$penalty`
 
 Woohoo!
 
@@ -275,7 +280,7 @@ Lets fit our model, this time we can make penalty our value:
 
 ```{r}
 final_glm_model <-
-  logistic_reg(mode = "classification", mixture = 1, penalty = best_accuracy_penalty$penalty) %>%
+  logistic_reg(mode = "classification", mixture = 1, penalty = best_roc_penalty$penalty) %>%
   set_mode("classification") %>%
   set_engine("glmnet") %>%
   fit(attrition ~ ., data = kaggle_train)
@@ -297,11 +302,12 @@ glm_pred_table <-
 glm_conf_matrix <- table(glm_pred_table)
 
 # Calculate our accuracy
-glm_accuracy <- (glm_conf_matrix[1] + glm_conf_matrix[4]) / 441 # we have 441 rows in our test data
+glm_results <- (glm_conf_matrix[1] + glm_conf_matrix[4]) / 441 # we have 441 rows in our test data
 
-glm_accuracy
+glm_results
 ```
-We get an accuracy of: `r glm_accuracy`.
+
+We get an accuracy of: `r glm_results`.
 
 ### Extracting our parameters
 
@@ -353,7 +359,7 @@ xgb_grid <- grid_latin_hypercube(
 xgb_wf <-
   workflow() %>%
   add_model(xgb_model) %>%
-  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_satisfaction + monthly_income + monthly_rate + num_companies_worked + percent_salary_hike + performance_rating + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
+  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + percent_salary_hike + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manager + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
 
 # Tunes the parameters
 xgb_res <- tune_grid(
@@ -369,7 +375,7 @@ xgb_res <- tune_grid(
 Get the best model parameters with the highest accuracy:
 
 ```{r}
-xgb_accuracy <- select_best(xgb_res, "accuracy")
+xgb_accuracy <- select_best(xgb_res, "roc_auc")
 xgb_accuracy
 ```
 
@@ -405,7 +411,7 @@ svm_model <-
 svm_wf <-
   workflow() %>%
   add_model(svm_model) %>%
-  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_satisfaction + monthly_income + monthly_rate + num_companies_worked + percent_salary_hike + performance_rating + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
+  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + percent_salary_hike + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manager + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
 
 # Tunes the parameters
 formula_res <-
@@ -420,7 +426,7 @@ formula_res <-
 Get the best model parameters with the highest accuracy:
 
 ```{r}
-svm_best_acc <- select_best(formula_res, "accuracy")
+svm_best_acc <- select_best(formula_res, "roc_auc")
 svm_best_acc
 ```
 
@@ -442,8 +448,13 @@ svm_results
 # Summary/Analysis
 
 
+|      Type of Model     | Training Set Accuracy | ROC/AUC | Prediction Accuracy |
+|:----------------------:|:---------------------:|:-------:|:-------------------:|
+| Logistic Regression    | 0.878                 | 0.834   | 0.888               |
+| Boosted Decision Tree  | 0.866                 | 0.796   | 0.868               |
+| Support Vector Machine | 0.830                 | 0.796   | 0.857               |
 
-
+As we can see from the table, our Logistic Regression seemed to perform the best in terms of accuracy.
 
 # References
 

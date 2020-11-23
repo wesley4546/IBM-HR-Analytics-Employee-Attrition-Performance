@@ -430,12 +430,53 @@ summary {
 
 </div>
 
+<div id="TOC">
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#eda---steps-to-understand-our-data">EDA - Steps to understand our data</a>
+<ul>
+<li><a href="#age-distribution">Age Distribution</a>
+<ul>
+<li><a href="#does-age-affect-attrition">Does age affect attrition?</a></li>
+<li><a href="#departmental-attrition">Departmental Attrition?</a></li>
+<li><a href="#breakdown-of-distance-from-home-by-job-role-and-attrition">Breakdown of distance from home by job role and attrition</a></li>
+<li><a href="#average-monthly-income-by-education-and-attrition">Average Monthly income by education and attrition</a></li>
+<li><a href="#job-satisfaction-and-attrition-by-level-and-role">Job satisfaction and attrition by level and role</a></li>
+<li><a href="#gender-differences-in-attrition">Gender Differences in attrition?</a></li>
+<li><a href="#theory-based-approach-to-attrition-burn-out">Theory-based approach to attrition (Burn-out)</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#feature-selection-2-birds---1-stone">Feature Selection: 2 Birds - 1 Stone</a>
+<ul>
+<li><a href="#lasso-logistic-regression">LASSO Logistic Regression</a>
+<ul>
+<li><a href="#tuning-lambda-using-a-grid">Tuning Lambda using a grid</a></li>
+<li><a href="#evalutation---logistic-regression">Evalutation - Logistic Regression</a></li>
+<li><a href="#extracting-our-parameters">Extracting our parameters</a></li>
+</ul></li>
+<li><a href="#decision-tree">Decision Tree</a>
+<ul>
+<li><a href="#extracting-our-parameters-1">Extracting our parameters</a></li>
+<li><a href="#evaluation---decision-tree">Evaluation - Decision Tree</a></li>
+</ul></li>
+<li><a href="#svm">SVM</a>
+<ul>
+<li><a href="#extracting-our-parameters-2">Extracting our parameters</a></li>
+<li><a href="#evaluation---svm">Evaluation - SVM</a></li>
+</ul></li>
+</ul></li>
+<li><a href="#summaryanalysis">Summary/Analysis</a></li>
+<li><a href="#references">References</a></li>
+</ul>
+</div>
 
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
+<p>Today I will be using the IBM HR Analytics Employee Attrition &amp; Performance data set from Kaggle found :<a href="https://www.kaggle.com/pavansubhasht/ibm-hr-analytics-attrition-dataset">here</a></p>
 </div>
 <div id="eda---steps-to-understand-our-data" class="section level1">
 <h1>EDA - Steps to understand our data</h1>
+<p>I think its wise to first get an understanding of our data through different graphs of variables.</p>
 <div id="age-distribution" class="section level2">
 <h2>Age Distribution</h2>
 <div id="does-age-affect-attrition" class="section level3">
@@ -596,7 +637,7 @@ summary {
 </div>
 <div id="feature-selection-2-birds---1-stone" class="section level1">
 <h1>Feature Selection: 2 Birds - 1 Stone</h1>
-<p>Here I am going to be using a penalized logistic regression (basically a fancy logistic regression). Think of a normal logistic regression but we use <sub>regularization</sub>. Regularization is a way for us to increase our generalization of our models by adding penalties to the variables that shrinks the estimates of the coefficients.</p>
+<p>Here I am going to be using a penalized logistic regression (basically a fancy logistic regression). Think of a normal logistic regression but we use <em>regularization</em>. Regularization is a way for us to increase our generalization of our models by adding penalties to the variables that shrinks the estimates of the coefficients.</p>
 <p>This has two advantages:</p>
 <ol style="list-style-type: decimal">
 <li>It is a logistic regression</li>
@@ -604,7 +645,7 @@ summary {
 </ol>
 <p>I then can use those selected features for my other 2 models.</p>
 <p>I’m recently becoming a fan of the <code>tidymodels</code> package that allows standardized uses of models. Lets start by using <code>recipes</code> and <code>rsamples</code> to make our dummy variables as well as scale our numeric variables.</p>
-<pre class="r"><code>library(tidymodels)</code></pre>
+<pre class="r"><code>library(tidymodels, warn.conflicts = F)</code></pre>
 <pre><code>## -- Attaching packages -------------------------------------- tidymodels 0.1.1 --</code></pre>
 <pre><code>## v broom     0.7.2      v recipes   0.1.15
 ## v dials     0.0.9      v rsample   0.0.8 
@@ -622,7 +663,7 @@ summary {
 ## x dplyr::lag()      masks stats::lag()
 ## x yardstick::spec() masks readr::spec()
 ## x recipes::step()   masks stats::step()</code></pre>
-<pre class="r"><code>library(glmnet)</code></pre>
+<pre class="r"><code>library(glmnet,  warn.conflicts = F)</code></pre>
 <pre><code>## Loading required package: Matrix</code></pre>
 <pre><code>## 
 ## Attaching package: &#39;Matrix&#39;</code></pre>
@@ -687,19 +728,19 @@ glm_model &lt;- logistic_reg(mode = &quot;classification&quot;, mixture = 1, pen
 ## 
 ##     data_frame</code></pre>
 <p>The <code>select_best()</code> function allows us to pull out the model that has the best metric we specify.</p>
-<pre class="r"><code>best_accuracy_penalty &lt;-
+<pre class="r"><code>best_roc_penalty &lt;-
   glm_grid %&gt;%
-  select_best(metric = &quot;accuracy&quot;)
-best_accuracy_penalty</code></pre>
+  select_best(metric = &quot;roc_auc&quot;)
+best_roc_penalty</code></pre>
 <pre><code>## # A tibble: 1 x 2
 ##   penalty .config              
 ##     &lt;dbl&gt; &lt;chr&gt;                
-## 1 0.00569 Preprocessor1_Model39</code></pre>
-<p>We can see the best lambda value we found is: 0.0056899</p>
+## 1 0.00139 Preprocessor1_Model36</code></pre>
+<p>We can see the best lambda value we found is: 0.0013895</p>
 <p>Woohoo!</p>
 <p>Lets fit our model, this time we can make penalty our value:</p>
 <pre class="r"><code>final_glm_model &lt;-
-  logistic_reg(mode = &quot;classification&quot;, mixture = 1, penalty = best_accuracy_penalty$penalty) %&gt;%
+  logistic_reg(mode = &quot;classification&quot;, mixture = 1, penalty = best_roc_penalty$penalty) %&gt;%
   set_mode(&quot;classification&quot;) %&gt;%
   set_engine(&quot;glmnet&quot;) %&gt;%
   fit(attrition ~ ., data = kaggle_train)</code></pre>
@@ -718,11 +759,11 @@ glm_pred_table &lt;-
 glm_conf_matrix &lt;- table(glm_pred_table)
 
 # Calculate our accuracy
-glm_accuracy &lt;- (glm_conf_matrix[1] + glm_conf_matrix[4]) / 441 # we have 441 rows in our test data
+glm_results &lt;- (glm_conf_matrix[1] + glm_conf_matrix[4]) / 441 # we have 441 rows in our test data
 
-glm_accuracy</code></pre>
-<pre><code>## [1] 0.8798186</code></pre>
-<p>We get an accuracy of: 0.8798186.</p>
+glm_results</code></pre>
+<pre><code>## [1] 0.8888889</code></pre>
+<p>We get an accuracy of: 0.8888889.</p>
 </div>
 <div id="extracting-our-parameters" class="section level3">
 <h3>Extracting our parameters</h3>
@@ -769,7 +810,7 @@ xgb_grid &lt;- grid_latin_hypercube(
 xgb_wf &lt;-
   workflow() %&gt;%
   add_model(xgb_model) %&gt;%
-  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_satisfaction + monthly_income + monthly_rate + num_companies_worked + percent_salary_hike + performance_rating + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
+  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + percent_salary_hike + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manager + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
 
 # Tunes the parameters
 xgb_res &lt;- tune_grid(
@@ -787,7 +828,7 @@ xgb_res &lt;- tune_grid(
 <div id="extracting-our-parameters-1" class="section level3">
 <h3>Extracting our parameters</h3>
 <p>Get the best model parameters with the highest accuracy:</p>
-<pre class="r"><code>xgb_accuracy &lt;- select_best(xgb_res, &quot;accuracy&quot;)
+<pre class="r"><code>xgb_accuracy &lt;- select_best(xgb_res, &quot;roc_auc&quot;)
 xgb_accuracy</code></pre>
 <pre><code>## # A tibble: 1 x 7
 ##    mtry min_n tree_depth learn_rate loss_reduction sample_size .config          
@@ -812,8 +853,8 @@ xgb_results</code></pre>
 <pre><code>## # A tibble: 2 x 4
 ##   .metric  .estimator .estimate .config             
 ##   &lt;chr&gt;    &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
-## 1 accuracy binary         0.850 Preprocessor1_Model1
-## 2 roc_auc  binary         0.789 Preprocessor1_Model1</code></pre>
+## 1 accuracy binary         0.866 Preprocessor1_Model1
+## 2 roc_auc  binary         0.796 Preprocessor1_Model1</code></pre>
 </div>
 </div>
 <div id="svm" class="section level2">
@@ -828,7 +869,7 @@ svm_model &lt;-
 svm_wf &lt;-
   workflow() %&gt;%
   add_model(svm_model) %&gt;%
-  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_satisfaction + monthly_income + monthly_rate + num_companies_worked + percent_salary_hike + performance_rating + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
+  add_formula(attrition ~ age + daily_rate + distance_from_home + education + environment_satisfaction + hourly_rate + job_involvement + job_level + job_satisfaction + monthly_rate + num_companies_worked + percent_salary_hike + relationship_satisfaction + stock_option_level + total_working_years + training_times_last_year + work_life_balance + years_at_company + years_in_current_role + years_since_last_promotion + years_with_curr_manager + business_travel_Travel_Frequently + business_travel_Travel_Rarely + department_Sales + education_field_Marketing + education_field_Medical + education_field_Other + education_field_Technical.Degree + gender_Male + job_role_Human.Resources + job_role_Laboratory.Technician + job_role_Manager + job_role_Manufacturing.Director + job_role_Research.Director + job_role_Research.Scientist + job_role_Sales.Executive + job_role_Sales.Representative + marital_status_Married + marital_status_Single + over_time_Yes)
 
 # Tunes the parameters
 formula_res &lt;-
@@ -850,12 +891,12 @@ formula_res &lt;-
 <div id="extracting-our-parameters-2" class="section level3">
 <h3>Extracting our parameters</h3>
 <p>Get the best model parameters with the highest accuracy:</p>
-<pre class="r"><code>svm_best_acc &lt;- select_best(formula_res, &quot;accuracy&quot;)
+<pre class="r"><code>svm_best_acc &lt;- select_best(formula_res, &quot;roc_auc&quot;)
 svm_best_acc</code></pre>
 <pre><code>## # A tibble: 1 x 3
 ##     cost rbf_sigma .config              
 ##    &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;                
-## 1 0.0242 0.0000790 Preprocessor1_Model01</code></pre>
+## 1 0.0957    0.0177 Preprocessor1_Model06</code></pre>
 </div>
 <div id="evaluation---svm" class="section level3">
 <h3>Evaluation - SVM</h3>
@@ -873,12 +914,43 @@ svm_results</code></pre>
 ##   .metric  .estimator .estimate .config             
 ##   &lt;chr&gt;    &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
 ## 1 accuracy binary         0.830 Preprocessor1_Model1
-## 2 roc_auc  binary         0.766 Preprocessor1_Model1</code></pre>
+## 2 roc_auc  binary         0.796 Preprocessor1_Model1</code></pre>
 </div>
 </div>
 </div>
 <div id="summaryanalysis" class="section level1">
 <h1>Summary/Analysis</h1>
+<table>
+<thead>
+<tr class="header">
+<th align="center">Type of Model</th>
+<th align="center">Training Set Accuracy</th>
+<th align="center">ROC/AUC</th>
+<th align="center">Prediction Accuracy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">Logistic Regression</td>
+<td align="center">0.878</td>
+<td align="center">0.834</td>
+<td align="center">0.888</td>
+</tr>
+<tr class="even">
+<td align="center">Boosted Decision Tree</td>
+<td align="center">0.866</td>
+<td align="center">0.796</td>
+<td align="center">0.868</td>
+</tr>
+<tr class="odd">
+<td align="center">Support Vector Machine</td>
+<td align="center">0.830</td>
+<td align="center">0.796</td>
+<td align="center">0.857</td>
+</tr>
+</tbody>
+</table>
+<p>As we can see from the table, our Logistic Regression seemed to perform the best in terms of accuracy.</p>
 </div>
 <div id="references" class="section level1">
 <h1>References</h1>
