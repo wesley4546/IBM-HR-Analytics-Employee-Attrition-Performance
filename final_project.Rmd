@@ -3,7 +3,7 @@ title: "IBM HR Analytics Employee Attrition & Performance"
 author: "Wesley Gardiner"
 date: "11/18/2020"
 output: 
-  html_document:
+  github_document:
     toc: true
 ---
 
